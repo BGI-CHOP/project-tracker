@@ -2,7 +2,7 @@ import dash
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_table_experiments as dt
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, Event, State
 
 import urllib
 import pandas as pd
@@ -15,20 +15,23 @@ server = app.server
 resource_dir = os.path.realpath('./data/')
 
 df_project = pd.read_csv('data/project.csv')
-df_sample = pd.read_csv('data/sample.csv')
+df_sample = pd.read_csv('data/sample-details.csv')
 
 
-def get_dcc_drop(df, header, id):
+def get_dcc_drop(header, id):
+    df = df_sample.copy()
     items = sorted(df[header].unique())
     opt = [{'label': str(i), 'value': str(i)} for i in items]
     return dcc.Dropdown(
-        id=id, options=opt, multi=True,
+        id=id, options=opt,
+        multi=True,
         placeholder=header)
 
 
 def get_fig_dict(df, header):
-    yes = df[df[header] == 1].count()[header]
-    no = df[df[header] == 0].count()[header]
+    df = df_sample.copy()
+    yes = len(df[df[header] == 1].count())
+    no = len(df[df[header] == 0].count())
     fy = float(yes)
     fn = float(no)
     pct = "{:.2%}<br />".format(float(fy/(fy+fn)))
@@ -67,13 +70,22 @@ def get_dcc_graph(id, fig_dict):
     )
 
 
+def get_drop_retrun(header, opt):
+    df = df_sample.copy()
+    if not opt:
+        return df
+    else:
+        opt = [str(i) for i in opt]
+        return df[df[header].isin(opt)]
+
+
 logo = html.Img(src='/static/logo.png')
 head2 = html.H2('Gabriella Miller Kids First Data Tracker')
 
-drop_year = get_dcc_drop(df_project, 'Year', 'year')
-drop_pi = get_dcc_drop(df_project, 'Contact PI', 'pi')
-drop_inst = get_dcc_drop(df_project, 'Institution Name', 'inst')
-drop_title = get_dcc_drop(df_project, 'Title', 'title')
+drop_year = get_dcc_drop('Year', 'year')
+drop_pi = get_dcc_drop('Contact PI', 'pi')
+drop_inst = get_dcc_drop('Institution Name', 'inst')
+drop_title = get_dcc_drop('Title', 'title')
 
 fig1 = get_dcc_graph('ship', get_fig_dict(df_sample, 'Sample Shipped'))
 fig2 = get_dcc_graph('seq', get_fig_dict(df_sample, 'NGS Generation'))
@@ -83,7 +95,7 @@ fig5 = get_dcc_graph('ghorm', get_fig_dict(df_sample, 'Genome Hormonization'))
 fig6 = get_dcc_graph('phorm', get_fig_dict(df_sample, 'Clinical Hormonization'))
 
 table = dt.DataTable(
-            rows=df_sample.to_dict('records'),
+            rows=[],
             columns=df_sample.columns,
             editable=False,
             id='sample_table')
@@ -93,43 +105,43 @@ layout_fig = {'height': '220px'}
 layout_btn = {'margin-bottom': '35', 'margin-top': '5'}
 layout_table = {'font-size': '12'}
 
+app.title = 'local-kf-tracker'
+
 
 app.layout = html.Div(
     [
         html.P(' '),
         html.Div(
             [
-                html.Div([head2], className='col-sm-9'),
-                html.Div([logo], className='col-sm-3')
+                html.Div(head2, id='head', className='col-sm-9'),
+                html.Div(logo, className='col-sm-3')
             ],
             className='row'
         ),
         html.Hr(),
         html.Div(
             [
-                html.Div([drop_year], className='col-sm-2', style=layout),
-                html.Div([drop_pi], className='col-sm-4', style=layout),
-                html.Div([drop_inst], className='col-sm-6', style=layout),
-                html.Div([drop_title], className='col-sm-12', style=layout)
-            ],
-            className='row'
+                html.Div(drop_title, className='col-sm-12', style=layout),
+                html.Div(drop_year, className='col-sm-2', style=layout),
+                html.Div(drop_pi, className='col-sm-4', style=layout),
+                html.Div(drop_inst, className='col-sm-6', style=layout)
+            ], className='row'
         ),
         html.Div(
             [
-                html.Div([fig1], className='col-lg-2 col-sm-4', style=layout_fig),
-                html.Div([fig2], className='col-lg-2 col-sm-4', style=layout_fig),
-                html.Div([fig3], className='col-lg-2 col-sm-4', style=layout_fig),
-                html.Div([fig4], className='col-lg-2 col-sm-4', style=layout_fig),
-                html.Div([fig5], className='col-lg-2 col-sm-4', style=layout_fig),
-                html.Div([fig6], className='col-lg-2 col-sm-4', style=layout_fig)
-            ],
+                html.Div(fig1, className='col-lg-2 col-sm-4', style=layout_fig),
+                html.Div(fig2, className='col-lg-2 col-sm-4', style=layout_fig),
+                html.Div(fig3, className='col-lg-2 col-sm-4', style=layout_fig),
+                html.Div(fig4, className='col-lg-2 col-sm-4', style=layout_fig),
+                html.Div(fig5, className='col-lg-2 col-sm-4', style=layout_fig),
+                html.Div(fig6, className='col-lg-2 col-sm-4', style=layout_fig)
+            ], className='row'
         ),
-        html.Div([table], className='row', style=layout_table),
+        html.Div(table, className='row', style=layout_table),
         html.Div(
-            [
-                html.A(html.Button('download csv'), 
-                    id='export-url', download='kf-sample-stats.csv')
-            ],
+            html.A(
+                html.Button('download csv'), id='export-url', download='kf-sample-stats.csv'
+            ),
             className='row pull-right', style=layout_btn
         )],
     className='eight columns offset-by-two'
@@ -142,73 +154,16 @@ def serve_static(resource):
 
 
 @app.callback(
-    Output('ship', 'figure'), [Input('pi', 'value')])
-def update_fig_ship(selected_pi):
-    try:
-        new_df = df_sample[df_sample['Contact PI'].isin(selected_pi)]
-        return get_fig_dict(new_df, 'Sample Shipped')
-    except:
-        pass
-
-
-@app.callback(
-    Output('seq', 'figure'), [Input('pi', 'value')])
-def update_fig_seq(selected_pi):
-    try:
-        new_df = df_sample[df_sample['Contact PI'].isin(selected_pi)]
-        return get_fig_dict(new_df, 'NGS Generation')
-    except:
-        pass
-
-
-@app.callback(
-    Output('drc', 'figure'), [Input('pi', 'value')])
-def update_fig_drc(selected_pi):
-    try:
-        new_df = df_sample[df_sample['Contact PI'].isin(selected_pi)]
-        return get_fig_dict(new_df, 'NGS Data Ready')
-    except:
-        pass
-
-
-@app.callback(
-    Output('cvtc', 'figure'), [Input('pi', 'value')])
-def update_fig_cvtc(selected_pi):
-    try:
-        new_df = df_sample[df_sample['Contact PI'].isin(selected_pi)]
-        return get_fig_dict(new_df, 'Cavatica Ready')
-    except:
-        pass
-
-
-@app.callback(
-    Output('ghorm', 'figure'), [Input('pi', 'value')])
-def update_fig_ghorm(selected_pi):
-    try:
-        new_df = df_sample[df_sample['Contact PI'].isin(selected_pi)]
-        return get_fig_dict(new_df, 'Genome Hormonization')
-    except:
-        pass
-
-
-@app.callback(
-    Output('phorm', 'figure'), [Input('pi', 'value')])
-def update_fig_phorm(selected_pi):
-    try:
-        new_df = df_sample[df_sample['Contact PI'].isin(selected_pi)]
-        return get_fig_dict(new_df, 'Clinical Hormonization')
-    except:
-        pass
-
-
-@app.callback(
-    Output('sample_table', 'rows'), [Input('pi', 'value')])
-def update_sample_table(selected_pi):
-    try:
-        new_df = df_sample[df_sample['Contact PI'].isin(selected_pi)]
-        return new_df.to_dict('records')
-    except:
-        pass
+    Output('sample_table', 'rows'),
+    [Input('year', 'value'), Input('pi', 'value'),
+     Input('inst', 'value'), Input('title', 'value')])
+def update_sample_table(year, pi, inst, title):
+    year_row = get_drop_retrun('Year', year)
+    pi_row = get_drop_retrun('Contact PI', pi)
+    inst_row = get_drop_retrun('Institution Name', inst)
+    title_row = get_drop_retrun('Title', title)
+    frameList = [year_row, pi_row, inst_row, title_row]
+    return pd.concat(frameList, axis=1, join='inner').to_dict('records')
 
 
 @app.callback(
@@ -232,4 +187,4 @@ app.css.append_css({
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port=1105)
+    app.run_server(debug=True, port=8080)
