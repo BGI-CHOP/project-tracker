@@ -29,9 +29,9 @@ def get_dcc_drop(header, id):
 
 
 def get_fig_dict(df, header):
-    df = df_sample.copy()
-    yes = len(df[df[header] == 1].count())
-    no = len(df[df[header] == 0].count())
+    # df = df_sample.copy()
+    yes = len(df[df[header] == 1])
+    no = len(df[df[header] == 0])
     fy = float(yes)
     fn = float(no)
     pct = "{:.2%}<br />".format(float(fy/(fy+fn)))
@@ -79,6 +79,16 @@ def get_drop_retrun(header, opt):
         return df[df[header].isin(opt)]
 
 
+def get_new_df(year, pi, inst, title):
+    year_row = get_drop_retrun('Year', year)
+    pi_row = get_drop_retrun('Contact PI', pi)
+    inst_row = get_drop_retrun('Institution Name', inst)
+    title_row = get_drop_retrun('Title', title)
+    frameList = [year_row, pi_row, inst_row, title_row]
+    idx = pd.concat(frameList, axis=1, join='inner').index
+    return pd.concat(frameList).loc[idx].drop_duplicates()
+
+
 logo = html.Img(src='/static/logo.png')
 head2 = html.H2('Gabriella Miller Kids First Data Tracker')
 
@@ -100,7 +110,7 @@ table = dt.DataTable(
             editable=False,
             id='sample_table')
 
-layout = {'margin-top': '5'}
+layout = {'margin-top': '5', 'padding-right': '4', 'padding-left': '0'}
 layout_fig = {'height': '220px'}
 layout_btn = {'margin-bottom': '35', 'margin-top': '5'}
 layout_table = {'font-size': '12'}
@@ -154,27 +164,76 @@ def serve_static(resource):
 
 
 @app.callback(
+    Output('ship', 'figure'),
+    [Input('year', 'value'), Input('pi', 'value'),
+     Input('inst', 'value'), Input('title', 'value')])
+def update_fig_ship(year, pi, inst, title):
+    new_df = get_new_df(year, pi, inst, title)
+    return get_fig_dict(new_df, "Sample Shipped")
+
+
+@app.callback(
+    Output('seq', 'figure'),
+    [Input('year', 'value'), Input('pi', 'value'),
+     Input('inst', 'value'), Input('title', 'value')])
+def update_fig_ship(year, pi, inst, title):
+    new_df = get_new_df(year, pi, inst, title)
+    return get_fig_dict(new_df, "NGS Generation")
+
+
+@app.callback(
+    Output('drc', 'figure'),
+    [Input('year', 'value'), Input('pi', 'value'),
+     Input('inst', 'value'), Input('title', 'value')])
+def update_fig_ship(year, pi, inst, title):
+    new_df = get_new_df(year, pi, inst, title)
+    return get_fig_dict(new_df, "NGS Data Ready")
+
+
+@app.callback(
+    Output('cvtc', 'figure'),
+    [Input('year', 'value'), Input('pi', 'value'),
+     Input('inst', 'value'), Input('title', 'value')])
+def update_fig_ship(year, pi, inst, title):
+    new_df = get_new_df(year, pi, inst, title)
+    return get_fig_dict(new_df, "Cavatica Ready")
+
+
+@app.callback(
+    Output('ghorm', 'figure'),
+    [Input('year', 'value'), Input('pi', 'value'),
+     Input('inst', 'value'), Input('title', 'value')])
+def update_fig_ship(year, pi, inst, title):
+    new_df = get_new_df(year, pi, inst, title)
+    return get_fig_dict(new_df, "Genome Hormonization")
+
+
+@app.callback(
+    Output('phorm', 'figure'),
+    [Input('year', 'value'), Input('pi', 'value'),
+     Input('inst', 'value'), Input('title', 'value')])
+def update_fig_ship(year, pi, inst, title):
+    new_df = get_new_df(year, pi, inst, title)
+    return get_fig_dict(new_df, "Clinical Hormonization")
+
+
+@app.callback(
     Output('sample_table', 'rows'),
     [Input('year', 'value'), Input('pi', 'value'),
      Input('inst', 'value'), Input('title', 'value')])
 def update_sample_table(year, pi, inst, title):
-    year_row = get_drop_retrun('Year', year)
-    pi_row = get_drop_retrun('Contact PI', pi)
-    inst_row = get_drop_retrun('Institution Name', inst)
-    title_row = get_drop_retrun('Title', title)
-    frameList = [year_row, pi_row, inst_row, title_row]
-    return pd.concat(frameList, axis=1, join='inner').to_dict('records')
+    new_df = get_new_df(year, pi, inst, title)
+    return new_df.to_dict('records')
 
 
 @app.callback(
-    Output('export-url', 'href'), [Input('pi', 'value')])
-def update_download_link(selected_pi):
-    try:
-        new_df = df_sample[df_sample['Contact PI'].isin(selected_pi)]
-        csv = new_df.to_csv(index=False, encoding='utf-8')
-        return "data:text/csv;charset=utf-8," + urllib.quote(csv)
-    except:
-        pass
+    Output('export-url', 'href'),
+    [Input('year', 'value'), Input('pi', 'value'),
+     Input('inst', 'value'), Input('title', 'value')])
+def update_download_link(year, pi, inst, title):
+    new_df = get_new_df(year, pi, inst, title)
+    csv = new_df.to_csv(index=False, encoding='utf-8')
+    return "data:text/csv;charset=utf-8," + urllib.quote(csv)
 
 
 app.css.append_css({
