@@ -2,20 +2,13 @@ import dash
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_table_experiments as dt
-from dash.dependencies import Input, Output, Event, State
+from dash.dependencies import Input, Output
 
 import urllib
 import pandas as pd
 
 import flask
 import os
-
-app = dash.Dash()
-server = app.server
-resource_dir = os.path.realpath('./data/')
-
-df_project = pd.read_csv('data/project.csv')
-df_sample = pd.read_csv('data/sample-details.csv')
 
 
 def get_dcc_drop(header, id):
@@ -29,12 +22,12 @@ def get_dcc_drop(header, id):
 
 
 def get_fig_dict(df, header):
-    # df = df_sample.copy()
-    yes = len(df[df[header] == 1])
-    no = len(df[df[header] == 0])
+    yes = df[df[header] == 1].count()[header]
+    no = df[df[header] == 0].count()[header]
     fy = float(yes)
     fn = float(no)
     pct = "{:.2%}<br />".format(float(fy/(fy+fn)))
+    header = header.replace('Data ', 'Data<br />')
     data = dict(
         values=[yes, no],
         labels=['Complete', 'Waiting'],
@@ -89,6 +82,13 @@ def get_new_df(year, pi, inst, title):
     return pd.concat(frameList).loc[idx].drop_duplicates()
 
 
+app = dash.Dash()
+server = app.server
+resource_dir = os.path.realpath('./static/')
+
+df_project = pd.read_csv('data/project.csv')
+df_sample = pd.read_csv('data/sample-random.csv')
+
 logo = html.Img(src='/static/logo.png')
 head2 = html.H2('Gabriella Miller Kids First Data Tracker')
 
@@ -98,11 +98,11 @@ drop_inst = get_dcc_drop('Institution Name', 'inst')
 drop_title = get_dcc_drop('Title', 'title')
 
 fig1 = get_dcc_graph('ship', get_fig_dict(df_sample, 'Sample Shipped'))
-fig2 = get_dcc_graph('seq', get_fig_dict(df_sample, 'NGS Generation'))
-fig3 = get_dcc_graph('drc', get_fig_dict(df_sample, 'NGS Data Ready'))
-fig4 = get_dcc_graph('cvtc', get_fig_dict(df_sample, 'Cavatica Ready'))
-fig5 = get_dcc_graph('ghorm', get_fig_dict(df_sample, 'Genome Hormonization'))
-fig6 = get_dcc_graph('phorm', get_fig_dict(df_sample, 'Clinical Hormonization'))
+fig2 = get_dcc_graph('seq', get_fig_dict(df_sample, 'Sample Sequenced'))
+fig3 = get_dcc_graph('drc', get_fig_dict(df_sample, 'DRC Received'))
+fig4 = get_dcc_graph('cvtc', get_fig_dict(df_sample, 'Available on Cavatica'))
+fig5 = get_dcc_graph('gharm', get_fig_dict(df_sample, 'Genomics Data Harmonized'))
+fig6 = get_dcc_graph('pharm', get_fig_dict(df_sample, 'Phenotype Data Harmonized'))
 
 table = dt.DataTable(
             rows=[],
@@ -110,13 +110,12 @@ table = dt.DataTable(
             editable=False,
             id='sample_table')
 
-layout = {'margin-top': '5', 'padding-right': '4', 'padding-left': '0'}
+layout = {'margin-top': '5', 'padding-right': '5', 'padding-left': '0'}
 layout_fig = {'height': '220px'}
 layout_btn = {'margin-bottom': '35', 'margin-top': '5'}
 layout_table = {'font-size': '12'}
 
-app.title = 'local-kf-tracker'
-
+app.title = 'dev-kf-tracker'
 
 app.layout = html.Div(
     [
@@ -150,7 +149,9 @@ app.layout = html.Div(
         html.Div(table, className='row', style=layout_table),
         html.Div(
             html.A(
-                html.Button('download csv'), id='export-url', download='kf-sample-stats.csv'
+                html.Button('download csv'),
+                id='export-url',
+                download='kf-sample-stats.csv'
             ),
             className='row pull-right', style=layout_btn
         )],
@@ -176,45 +177,45 @@ def update_fig_ship(year, pi, inst, title):
     Output('seq', 'figure'),
     [Input('year', 'value'), Input('pi', 'value'),
      Input('inst', 'value'), Input('title', 'value')])
-def update_fig_ship(year, pi, inst, title):
+def update_seq_ship(year, pi, inst, title):
     new_df = get_new_df(year, pi, inst, title)
-    return get_fig_dict(new_df, "NGS Generation")
+    return get_fig_dict(new_df, "Sample Sequenced")
 
 
 @app.callback(
     Output('drc', 'figure'),
     [Input('year', 'value'), Input('pi', 'value'),
      Input('inst', 'value'), Input('title', 'value')])
-def update_fig_ship(year, pi, inst, title):
+def update_drc_ship(year, pi, inst, title):
     new_df = get_new_df(year, pi, inst, title)
-    return get_fig_dict(new_df, "NGS Data Ready")
+    return get_fig_dict(new_df, "DRC Received")
 
 
 @app.callback(
     Output('cvtc', 'figure'),
     [Input('year', 'value'), Input('pi', 'value'),
      Input('inst', 'value'), Input('title', 'value')])
-def update_fig_ship(year, pi, inst, title):
+def update_cvtc_ship(year, pi, inst, title):
     new_df = get_new_df(year, pi, inst, title)
-    return get_fig_dict(new_df, "Cavatica Ready")
+    return get_fig_dict(new_df, "Available on Cavatica")
 
 
 @app.callback(
-    Output('ghorm', 'figure'),
+    Output('gharm', 'figure'),
     [Input('year', 'value'), Input('pi', 'value'),
      Input('inst', 'value'), Input('title', 'value')])
-def update_fig_ship(year, pi, inst, title):
+def update_gharm_ship(year, pi, inst, title):
     new_df = get_new_df(year, pi, inst, title)
-    return get_fig_dict(new_df, "Genome Hormonization")
+    return get_fig_dict(new_df, "Genomics Data Harmonized")
 
 
 @app.callback(
-    Output('phorm', 'figure'),
+    Output('pharm', 'figure'),
     [Input('year', 'value'), Input('pi', 'value'),
      Input('inst', 'value'), Input('title', 'value')])
-def update_fig_ship(year, pi, inst, title):
+def update_pharm_ship(year, pi, inst, title):
     new_df = get_new_df(year, pi, inst, title)
-    return get_fig_dict(new_df, "Clinical Hormonization")
+    return get_fig_dict(new_df, "Phenotype Data Harmonized")
 
 
 @app.callback(
@@ -246,4 +247,4 @@ app.css.append_css({
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8080)
+    app.run_server(debug=True, host='0.0.0.0', port=8080)
