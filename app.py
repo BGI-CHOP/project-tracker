@@ -22,8 +22,12 @@ def get_dcc_drop(header, id):
 
 
 def get_fig_dict(df, header):
-    yes = df[df[header] == 1].count()[header]
-    no = df[df[header] == 0].count()[header]
+    if len(df) == 0:
+        yes = 0
+        no = 1
+    else:
+        yes = df[df[header] == 1].count()[header]
+        no = df[df[header] == 0].count()[header]
     fy = float(yes)
     fn = float(no)
     pct = "{:.2%}<br />".format(float(fy/(fy+fn)))
