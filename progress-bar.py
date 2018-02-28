@@ -10,6 +10,12 @@ import pandas as pd
 import flask
 import os
 
+layout = {'margin-top': '5', 'padding-right': '5', 'padding-left': '0'}
+layout_fig = {'height': '220px'}
+layout_btn = {'margin-bottom': '35', 'margin-top': '5'}
+layout_table = {'font-size': '12'}
+layout_bar = {'height': '20px', 'margin-top': '0'}
+
 
 def get_dcc_drop(header, id):
     df = df_sample.copy()
@@ -99,11 +105,14 @@ def get_dcc_bar(df, header):
     fn = float(no)
     pct = "{:.2%}".format(float(fy/(fy+fn)))
     html_bar = html.Div(
-        style=dict(width=pct),
-        children=pct,
+        style={'width': pct,
+               'height': '20px',
+               'text-align': 'left',
+               'padding-left': '10'},
+        children=header+': '+pct,
         className='progress-bar progress-info'
     )
-    return html.Div(html_bar, className='progress')
+    return html.Div(html_bar, className='progress', style=layout_bar)
 
 app = dash.Dash()
 server = app.server
@@ -140,16 +149,7 @@ table = dt.DataTable(
             editable=False,
             id='sample_table')
 
-layout = {'margin-top': '5', 'padding-right': '5', 'padding-left': '0'}
-layout_fig = {'height': '220px'}
-layout_btn = {'margin-bottom': '35', 'margin-top': '5'}
-layout_table = {'font-size': '12'}
-
 app.title = 'dev-kf-tracker'
-
-html.Div(
-    
-)
 
 app.layout = html.Div(
     [
@@ -172,12 +172,12 @@ app.layout = html.Div(
         ),
         html.Div(
             [bar1, bar2, bar3, bar4, bar5, bar6],
-            className='row', id='progress-bar', style=layout
+            className='row', id='progress-bar', style={'margin-top': '35'}
         ),
-        html.Div(
-            [fig1, fig2, fig3, fig4, fig5, fig6],
-            className='row', id='pie-chart'
-        ),
+        # html.Div(
+        #     [fig1, fig2, fig3, fig4, fig5, fig6],
+        #     className='row', id='pie-chart'
+        # ),
         html.Div(table, className='row', style=layout_table),
         html.Div(
             html.A(
@@ -210,18 +210,18 @@ def update_bar(year, pi, inst, title):
             get_dcc_bar(new_df, 'Phenotype Data Harmonized')]
 
 
-@app.callback(
-    Output('pie-chart', 'children'),
-    [Input('year', 'value'), Input('pi', 'value'),
-     Input('inst', 'value'), Input('title', 'value')])
-def update_fig(year, pi, inst, title):
-    new_df = get_new_df(year, pi, inst, title)
-    return [get_dcc_graph(new_df, 'Sample Shipped'),
-            get_dcc_graph(new_df, 'Sample Sequenced'),
-            get_dcc_graph(new_df, 'DRC Received'),
-            get_dcc_graph(new_df, 'Available on Cavatica'),
-            get_dcc_graph(new_df, 'Genomics Data Harmonized'),
-            get_dcc_graph(new_df, 'Phenotype Data Harmonized')]
+# @app.callback(
+#     Output('pie-chart', 'children'),
+#     [Input('year', 'value'), Input('pi', 'value'),
+#      Input('inst', 'value'), Input('title', 'value')])
+# def update_fig(year, pi, inst, title):
+#     new_df = get_new_df(year, pi, inst, title)
+#     return [get_dcc_graph(new_df, 'Sample Shipped'),
+#             get_dcc_graph(new_df, 'Sample Sequenced'),
+#             get_dcc_graph(new_df, 'DRC Received'),
+#             get_dcc_graph(new_df, 'Available on Cavatica'),
+#             get_dcc_graph(new_df, 'Genomics Data Harmonized'),
+#             get_dcc_graph(new_df, 'Phenotype Data Harmonized')]
 
 
 @app.callback(
